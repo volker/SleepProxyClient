@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # This file is part of SleepProxyClient.
 #
@@ -21,8 +21,13 @@
 
 
 # get defaults
-. /etc/default/sleepproxyclient
-
+if [ -f /etc/default/sleepproxyclient ]
+then
+	. /etc/default/sleepproxyclient
+elif [ -f /etc/defaults/sleepproxyclient ]
+then
+	. /etc/defaults/sleepproxyclient
+fi
 
 IF_OPT=""
 if [ "$SPC_INTERFACES" != "" ]

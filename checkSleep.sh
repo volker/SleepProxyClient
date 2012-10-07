@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 export PATH=/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export LANG=en_US.utf8
@@ -29,7 +29,8 @@ SCRIPT_DIR=$(dirname $0)
 # run SleepProxyClient
 function doSleep {
 	logger "checkSleep: initiating sleep"
-	pm-suspend
+#	pm-suspend
+	acpiconf -s 3
 	logger "checkSleep: awake!"
 }
 
@@ -42,23 +43,31 @@ function doCheck {
 	USERS=`who | wc -l`
 	if [ $USERS -gt 0 ]
 	then
-#		echo "Active users: $USERS"
+		echo "Active users: $USERS" >> /home/volker/checksleep_debug.txt
 		RESULT=1
 	fi
 
 
 	# check if no non-local connection is active
-	CONNS=`netstat -tn | grep -v "127.0.0.1" | grep "ESTABLISHED" | wc -l`
+	CONNS=`netstat -p tcp -n | grep -v "127.0.0.1" | grep "ESTABLISHED" | wc -l`
 	if [ $CONNS -gt 0 ]
 	then
-#		echo "Active connections: $CONNS"
+		echo "Active connections: $CONNS" >> /home/volker/checksleep_debug.txt
 		RESULT=1
 	fi
 
 	#check for heavy processing/cpu load,
-	LOAD5MINAVG=`cat /proc/loadavg  | cut -d " " -f 2`
+	if test -f /proc/loadavg
+	then
+		LOAD5MINAVG=`cat /proc/loadavg  | cut -d " " -f 2`
+	elif test -f /sbin/sysctl
+	then
+		LOAD5MINAVG=`sysctl vm.loadavg | cut -d " " -f 5`
+	fi
+
 	if [ `echo "$LOAD5MINAVG > 1" | bc` -gt 0 ]
 	then
+		echo "5 min avg load > 1" >> /home/volker/checksleep_debug.txt
 		RESULT=1
 	fi
 	return $RESULT
@@ -75,13 +84,16 @@ then
 		rm -f "$TMPFILE"
 		
 		# initiate sleep
+		echo "Initiate sleep" >> /home/volker/checksleep_debug.txt
 		doSleep
 	else
 		# mark run as positive
+		echo "Positive run" >> /home/volker/checksleep_debug.txt
 		touch "$TMPFILE"
 	fi
 else
 	rm -f "$TMPFILE"
+	echo "Negative run" >> /home/volker/checksleep_debug.txt
 	RET=1
 fi
 
